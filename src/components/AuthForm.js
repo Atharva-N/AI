@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-// src/components/AuthForm.js
-import { auth } from '../firebase'; // Change this line to import auth correctly
-// Import db if you are using it in this file
-
-
+import { auth } from '../firebase'; 
 import {
     GoogleAuthProvider,
     signInWithPopup,
@@ -12,7 +8,7 @@ import {
     createUserWithEmailAndPassword,
     sendPasswordResetEmail,
 } from 'firebase/auth';
-
+import logo from './QuestX.jpg';
 const AuthForm = () => {
     const navigate = useNavigate();
     const [isLogin, setIsLogin] = useState(true);
@@ -126,14 +122,13 @@ const AuthForm = () => {
                 friendlyMessage = `Google sign-in error: ${error.message}`;
             }
 
-            setMessage(friendlyMessage); // Display the user-friendly message
+            setMessage(friendlyMessage); 
         } finally {
             setIsLoading(false);
         }
     };
 
     const forgotPassword = async () => {
-        // No need for password input, only email is required.
         if (!email) {
             setMessage('Please enter your email address.');
             return;
@@ -149,6 +144,7 @@ const AuthForm = () => {
 
     return (
         <div className="container">
+             <img src={logo} alt="Logo" style={{ width: '375px', marginBottom: '20px' } } />
             <h2>Welcome</h2>
             <div className="tabs">
                 <div className={`tab ${isLogin ? 'active' : ''}`} onClick={toggleTab}>
@@ -197,7 +193,7 @@ const AuthForm = () => {
                 <div className="forgot-password">
                     {isLogin && (
                         <button
-                            type="button" // Change to button to prevent form submission
+                            type="button" 
                             onClick={forgotPassword}
                             style={{ background: 'none', color: 'blue', border: 'none', padding: 0, cursor: 'pointer' }}
                         >

@@ -1,23 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { auth, db } from '../firebase';
+import { auth, db, storage } from '../firebase';
 import { collection, addDoc, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const Home = () => {
     const [todos, setTodos] = useState([]);
     const [newTodo, setNewTodo] = useState('');
+    const [newImage, setNewImage] = useState(null); // State for storing the selected image file
     const [user, setUser] = useState(null);
     const navigate = useNavigate();
 
     useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged((user) => {
             if (user) {
-                console.log("User authenticated:", user.uid);
                 setUser(user);
                 fetchTodos(user.uid);
             } else {
-                console.log("User not authenticated");
                 navigate('/');
             }
         });
@@ -26,7 +26,6 @@ const Home = () => {
     }, [navigate]);
 
     const fetchTodos = async (uid) => {
-        console.log("Fetching todos for user:", uid);
         try {
             const q = query(collection(db, 'todos'), where('userId', '==', uid));
             const querySnapshot = await getDocs(q);
@@ -34,7 +33,6 @@ const Home = () => {
                 id: doc.id,
                 ...doc.data()
             }));
-            console.log("Fetched todos:", fetchedTodos);
             setTodos(fetchedTodos);
         } catch (error) {
             console.error("Error fetching todos:", error);
@@ -45,20 +43,33 @@ const Home = () => {
     const addTodo = async (e) => {
         e.preventDefault();
         if (!newTodo.trim() || !user) {
-            console.log("No todo text or user not authenticated");
             return;
         }
 
+        let imageUrl = '';
+        if (newImage) {
+            // Upload image to Firebase Storage
+            const imageRef = ref(storage, `images/${user.uid}/${newImage.name}`);
+            try {
+                const snapshot = await uploadBytes(imageRef, newImage);
+                imageUrl = await getDownloadURL(snapshot.ref); // Get the image URL
+            } catch (error) {
+                console.error("Error uploading image:", error);
+                alert(`Failed to upload image: ${error.message}`);
+                return;
+            }
+        }
+
         try {
-            console.log("Adding todo for user:", user.uid);
             const docRef = await addDoc(collection(db, 'todos'), {
                 text: newTodo,
+                imageUrl, // Store the image URL in Firestore
                 userId: user.uid,
                 createdAt: new Date()
             });
-            console.log("Todo added successfully:", docRef.id);
-            setTodos([...todos, { id: docRef.id, text: newTodo, userId: user.uid }]);
+            setTodos([...todos, { id: docRef.id, text: newTodo, imageUrl, userId: user.uid }]);
             setNewTodo('');
+            setNewImage(null); // Reset the image input
         } catch (error) {
             console.error("Error adding todo:", error);
             alert(`Failed to add todo: ${error.message}`);
@@ -67,9 +78,7 @@ const Home = () => {
 
     const deleteTodo = async (id) => {
         try {
-            console.log("Deleting todo:", id);
             await deleteDoc(doc(db, 'todos', id));
-            console.log("Todo deleted successfully");
             setTodos(todos.filter(todo => todo.id !== id));
         } catch (error) {
             console.error("Error deleting todo:", error);
@@ -97,12 +106,22 @@ const Home = () => {
                     onChange={(e) => setNewTodo(e.target.value)}
                     placeholder="Add a new todo"
                 />
+                <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setNewImage(e.target.files[0])} // Handle image file input
+                />
                 <button type="submit">Add Todo</button>
             </form>
             <ul>
                 {todos.map((todo) => (
                     <li key={todo.id}>
-                        {todo.text}
+                        <div>
+                            <p>{todo.text}</p>
+                            {todo.imageUrl && (
+                                <img src={todo.imageUrl} alt="Todo" style={{ width: '100px', height: '100px' }} />
+                            )}
+                        </div>
                         <button onClick={() => deleteTodo(todo.id)}>Delete</button>
                     </li>
                 ))}
